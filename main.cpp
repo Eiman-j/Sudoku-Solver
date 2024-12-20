@@ -3,6 +3,9 @@
 #include <cstdlib>
 #include <ctime>
 #include "Graph.cpp" 
+#include "BST.cpp"
+#include<conio.h>
+#include <list>
 //using graph for constraint monitoring while backtracking/inputting values
 using namespace std;
 
@@ -53,9 +56,9 @@ list<int> getConnectedNodes(int row, int col)
 
 }
 
-void buildGraph()
+void buildGraph(Graph &sudokuGraph)
 {
-    Graph sudokuGraph;
+   
     for(int row =0; row<9; row++)
     {
         for(int col=0; col<9; col++)
@@ -66,17 +69,55 @@ void buildGraph()
         }
     }
 }
+
+
+//adding functions to integrate BST with sudoku
+//bst for each cell will store its possible values
+//used for user input validation
+
+class Player
+{
+    string name_tag;
+    char character;
+    int score;
+    int tries;
+    public:
+    Player(string name_tag, char character)
+    {
+        this->name_tag = name_tag;
+        this->character = character;
+        this->score = 100; //initial points
+        this->tries = 3; 
+    }
+    int getScore() const 
+    { 
+        return score; 
+    }
+    int getTries() const 
+    { 
+        return tries; 
+    }
+    string getName() const 
+    { 
+        return name_tag; 
+    }
+
+
+};
 class Sudoku
 {
 
     vector<vector<int>> sudokuGrid;
     public:
     vector<vector<int>> displayGrid;
+    vector<vector<BST>>possibleValues;
+    Graph sudokuGraph;
     public:
     Sudoku()
     {
         sudokuGrid.assign(9, vector<int>(9, 0));//empty grid 
         displayGrid.assign(9, vector<int>(9, 0));
+        possibleValues.assign(9, vector<BST>(9));
 
     }
     void createDisplayGrid()
@@ -125,7 +166,8 @@ class Sudoku
             }
 
             removeCells(cellsToRemove);
-            buildGraph();
+            buildGraph(sudokuGraph);
+            initializePossibleValues();
         }
 
     }
@@ -209,48 +251,82 @@ class Sudoku
         }
     }
 
-};
-
-class Player
-{
-    string name_tag;
-    char character;
-    int score;
-    int tries;
-    public:
-    Player(string name_tag, char character)
+    void displayMenu(Player &player)
     {
-        this->name_tag = name_tag;
-        this->character = character;
-        this->score = 100; //initial points
-        this->tries = 3; 
-    }
-    void inputValue(Sudoku &sudoku, Graph &graph, int row, int col, int value)
-    {
-        if(checkUserInput(sudoku, graph, row, col, value))
+        while(true)
         {
-            sudoku.displayGrid[row][col] = value;
+        system("cls");
+        cout<<"======== Sudoku Game Menu ========"<<endl;
+        cout<<"1. Start a new game"<<endl;
+        cout<<"2. View leaderboard"<<endl;
+        cout<<"3. Exit" <<endl;
+        cout<<"=================================="<<endl;
+        cout<<"Enter your choice: ";
+        char choice = _getch();  
+        if(choice == '1')
+        {
+            cout<<"\nStarting a new game...\n";
+            playSudoku(player);
+            break;
+
+        }
+        else if(choice == '2')
+        {
+            cout <<"\nDisplaying the leaderboard...\n";
+            //displayLeaderboard();
+            break;
+
+        }
+        else if(choice == '3')
+        {
+            cout <<"\nExiting the game. Goodbye!\n";
+            //savePlayerInfo();
+            break;
+        }
+        else
+        {
+            cout<<"\nInvalid input. Please press a key between 1 and 3.\n";
+            system("pause");
+        }
+        }
+
+
+    }
+    void inputValue(int row, int col, int value)
+    {
+         cout << "Trying to input value " << value << " at (" << row << ", " << col << ")\n";
+        if(isSafe(row, col, value))
+        {
+            displayGrid[row][col] = value;
+            updatePossibleValues(row, col, value, sudokuGraph);
+            cout << "Value " << value << " inserted at (" << row << ", " << col << ")\n";
 
         }
         else
         {
-            --tries;
-            cout<<"Attempts Left: "<<tries<<endl;
+            //player.tries--
+            cout<<"Attempts Left: "<<"tries"<<endl;
         }
     }
-    bool checkUserInput(Sudoku &sudoku, Graph &graph, int row, int col, int value)
+    bool checkUserInput(int row, int col, int value)
     {
-        if((sudoku.displayGrid[row][col]!=0) || (value>9 || value<=0) || (row < 0 || row >= 9 || col < 0 || col >= 9))
+        if((displayGrid[row][col]!=0) || (value>9 || value<=0) || (row < 0 || row >= 9 || col < 0 || col >= 9))
         {
+            return false;
+        }
+        //BST valisdation
+        if (!isValidInput(row, col, value)) 
+        {
+            cout << "Error: Value not valid for this cell.\n";
             return false;
         }
         //use the graph to implement constraints on the value
         int userIndex = row*9 + col;
-        for(int i: graph.adjList[userIndex])
+        for(int i: sudokuGraph.adjList[userIndex])
         {
            int nRow = i/9;
            int nCol = i%9;
-           if(sudoku.displayGrid[nRow][nCol] == value)
+           if(displayGrid[nRow][nCol] == value)
            {
             cout << "Error: Value violates Sudoku constraints.\n";
             return false;
@@ -259,20 +335,160 @@ class Player
         return true;
     }
 
+    void playSudoku(Player &player)
+    {
+        string difficulty;
+        cout<<"\nEnter Difficulty Level(Easy, Medium, Hard): \n";
+        cin>>difficulty;
+        generateSudoku(difficulty);
+        printGridDisplay();
+        auto startTime = time(0);
+        while (true) 
+        {
+        //system("cls");
+        printGridDisplay();
+        cout << "\nPlayer: " << player.getName() << "\nScore: " << player.getScore() << "\nTries left: " << player.getTries() << endl;
+
+        int row, col, value;
+        printCellOptions();
+        cout << "\nEnter Row (0-8): ";
+        cin >> row;
+        cout << "Enter Column (0-8): ";
+        cin >> col;
+        cout << "Enter Value (1-9): ";
+        cin >> value;
+
+        if (row == -1 || col == -1) 
+        {
+            cout << "Exiting the game...\n";
+            break;
+        }
+
+        inputValue(row, col, value);
+
+        if (player.getTries() <= 0) 
+        {
+            cout << "\nGame Over! You've exhausted all attempts.\n";
+            break;
+        }
+        }
+
+        
+        //function validates user input
+        //time functionality --- attribute of player class
+        //each time a value is added -- check if grid solved else prompt for 
+        //next input
+        //if solved --- check against solved grid
+        //if incorrect --- subtract score 
+        //give the option to show leaderboard
+        //save the player info if they choose to exit
+        //rematch is possible
+
+
+
+
+    }
+    bool isPossible(int val, int row, int col)
+    {
+        for(int i=0; i<9; i++)
+        {
+            if(displayGrid[row][i] == val)
+            {
+                return false;
+            }
+            if(displayGrid[i][col]==val)
+            {
+                return false;
+            }
+            if(displayGrid[3*(row/3)+i/3][3*(col/3)+i%3]==val)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void initializePossibleValues()
+    {
+        
+        for (int row = 0; row < 9; row++) 
+        {
+            for (int col = 0; col < 9; col++) 
+            {
+                if(displayGrid[row][col]==0)
+                {
+                    
+                    for(int val=1; val<=9; val++)
+                    {
+                        if(isPossible(val, row, col))
+                        {
+                            possibleValues[row][col].insert(val);
+                        }
+                    
+                    }
+                }
+
+            }
+        }
+    }
+
+    void updatePossibleValues(int row, int col, int value, Graph &graph)
+    {
+        possibleValues[row][col].remove(value);
+
+        int index = row*9 + col;
+        //index for graph
+
+        for(int i: graph.adjList[index])
+        {
+            int r = i/9;
+            int c = i%9;
+            possibleValues[r][c].remove(value);
+        }
+        //removing the value if its connected to the node in the graph
+
+    }
+
+    bool isValidInput(int row, int col, int val)
+    {
+        return possibleValues[row][col].search(val);
+        //if the value is present in the bst, it returns true;
+
+    }
+    void printCellOptions() 
+    {
+    for (int row = 0; row < 9; row++) 
+    {
+        for (int col = 0; col < 9; col++) 
+        {
+            cout << "Cell (" << row << ", " << col << "): ";
+            for (int val = 1; val <= 9; val++) 
+            {
+                if (possibleValues[row][col].search(val)) 
+                {
+                    cout << val << " ";
+                }
+
+            }
+            cout<<endl;
+        }
+    }
+    }
+
 
 };
 
-int main()
+
+
+int main() 
 {
     srand(time(0));
     Sudoku sudoku;
-    string difficulty = "easy";
-    sudoku.generateSudoku(difficulty);
-    sudoku.printGrid();
-    cout<<endl<<endl;
-    sudoku.printGridDisplay();
+    Player player("PlayerName", 'A');
+    sudoku.displayMenu(player);
 
-
+    
 }
+
 
 
