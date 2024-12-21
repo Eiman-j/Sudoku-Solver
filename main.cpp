@@ -182,7 +182,7 @@ class Sudoku
 
     void generateSudoku(string& difficultyLevel)
     {
-        bool isFilled = fillGrid();
+        bool isFilled = fillGrid(sudokuGrid);
         createDisplayGrid();
         int cellsToRemove = 0;
         if(isFilled)
@@ -207,26 +207,26 @@ class Sudoku
 
     }
     
-    bool isSafe(int val, int row, int col)
+    bool isSafe(vector<vector<int>> &grid, int val, int row, int col)
     {
         for(int i=0; i<9; i++)
         {
-            if(sudokuGrid[row][i] == val)
+            if(grid[row][i] == val)
             {
                 return false;
             }
-            if(sudokuGrid[i][col]==val)
+            if(grid[i][col]==val)
             {
                 return false;
             }
-            if(sudokuGrid[3*(row/3)+i/3][3*(col/3)+i%3]==val)
+            if(grid[3*(row/3)+i/3][3*(col/3)+i%3]==val)
             {
                 return false;
             }
         }
         return true;
     }
-        void initializeSudokuGrid()
+    void initializeSudokuGrid()
     {
         int toFill = 20;
         int retries = 100;
@@ -235,7 +235,7 @@ class Sudoku
             int row = rand() % 9;
             int col = rand() % 9;
             int randomNumber =(rand() % 9)+1;//generate random number to add to grid
-            if(sudokuGrid[row][col]==0 && isSafe(randomNumber, row, col))
+            if(sudokuGrid[row][col]==0 && isSafe(sudokuGrid, randomNumber, row, col))
             {
                 sudokuGrid[row][col]=randomNumber;
                 toFill--;
@@ -246,27 +246,27 @@ class Sudoku
             }
 
         }
-        if(!fillGrid())
+        if(!fillGrid(sudokuGrid))
         {
             sudokuGrid.assign(9, vector<int>(9, 0));
             initializeSudokuGrid();
         }
     }
     
-    bool fillGrid()
+    bool fillGrid(vector<vector<int>> &grid)
     {
         for(int i=0; i<9; i++)
         {
             for(int j=0; j<9; j++)
             {
-                if(sudokuGrid[i][j]==0)
+                if(grid[i][j]==0)
                 {
                     for(int val=1; val<=9; val++)
                     {
-                        if(isSafe(val, i, j))
+                        if(isSafe(grid, val, i, j))
                         {
-                            sudokuGrid[i][j]=val;
-                            bool isPossible = fillGrid();
+                            grid[i][j]=val;
+                            bool isPossible = fillGrid(grid);
                             if(isPossible)
                             {
                                 return true;
@@ -274,7 +274,7 @@ class Sudoku
                             else
                             {
                                 //backtrack
-                                sudokuGrid[i][j]=0;
+                                grid[i][j]=0;
                             }
 
                         }
@@ -361,13 +361,36 @@ class Sudoku
                 {
                     return false;
                 }
-                if(!isSafe(displayGrid[row][col], row, col))
+                if(!isSafe(displayGrid, displayGrid[row][col], row, col))
                 {
                     return false;
                 }
             }
         }
         return true;
+
+    }
+    void viewSolvedGrid()
+    {
+        vector<vector<int>> tempGrid = displayGrid;
+        fillGrid(tempGrid);
+        for (int row = 0; row<9; row++) 
+        {
+            for (int col = 0; col<9; col++) 
+            {
+                if (displayGrid[row][col]==0)
+                {
+                    displayGrid[row][col] = tempGrid[row][col];
+                    system("cls");
+                    printGridDisplay();
+                    this_thread::sleep_for(chrono::milliseconds(200));
+
+                } 
+
+            }
+        }
+        cout<<"\nSolved Sudoku Grid:\n";
+        printGridDisplay();
 
     }
     void playSudoku(Player &player)
@@ -421,6 +444,7 @@ class Sudoku
         if (player.tries <= 0) 
         {
             cout << "\nGame Over! You've exhausted all attempts.\n";
+            viewSolvedGrid();
             player.score-=50;
             break;
         }
@@ -435,27 +459,6 @@ class Sudoku
 
     }
 
-
-    bool isPossible(int val, int row, int col)
-    {
-        for(int i=0; i<9; i++)
-        {
-            if(displayGrid[row][i] == val)
-            {
-                return false;
-            }
-            if(displayGrid[i][col]==val)
-            {
-                return false;
-            }
-            if(displayGrid[3*(row/3)+i/3][3*(col/3)+i%3]==val)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     void initializePossibleValues()
     {
         
@@ -468,7 +471,7 @@ class Sudoku
                     
                     for(int val=1; val<=9; val++)
                     {
-                        if(isPossible(val, row, col))
+                        if(isSafe(displayGrid, val, row, col))
                         {
                             possibleValues[row][col].insert(val);
                         }
