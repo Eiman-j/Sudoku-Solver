@@ -1,4 +1,5 @@
 #include<iostream>
+#include <fstream>
 #include<vector>
 #include <cstdlib>
 #include <ctime>
@@ -6,6 +7,9 @@
 #include "BST.cpp"
 #include<conio.h>
 #include <list>
+#include<string>
+#include<thread>
+#include<chrono>
 //using graph for constraint monitoring while backtracking/inputting values
 using namespace std;
 
@@ -16,8 +20,6 @@ using namespace std;
 //vertices connected through an edge 
 //are either in same row, col or 3x3 subgrid
 //validating user input
-
-
 list<int> getConnectedNodes(int row, int col)
 {
     list<int> tempNeighbours;
@@ -77,11 +79,12 @@ void buildGraph(Graph &sudokuGraph)
 
 class Player
 {
+    public:
     string name_tag;
     char character;
     int score;
     int tries;
-    public:
+    
     Player(string name_tag, char character)
     {
         this->name_tag = name_tag;
@@ -89,17 +92,57 @@ class Player
         this->score = 100; //initial points
         this->tries = 3; 
     }
-    int getScore() const 
-    { 
-        return score; 
+    
+    void savePlayerInfo()
+    {
+        ofstream outFile(name_tag + ".txt");
+        if(outFile.is_open())
+        {
+            outFile<<"NameTag:"<<name_tag<<endl;
+            outFile<<"Character:"<<character<<endl;
+            outFile<<"Score:"<<score<<endl;
+            outFile.close();
+            cout<<"Player information saved successfully!\n";
+
+        }
+        else
+        {
+            cout<<"Error: Unable to save player information."<<endl;
+        }
+        
+
     }
-    int getTries() const 
-    { 
-        return tries; 
-    }
-    string getName() const 
-    { 
-        return name_tag; 
+    void loadPlayerInfo()
+    {
+        ifstream inFile(name_tag + ".txt");
+        if(inFile.is_open())
+        {
+            string line;
+            while(getline(inFile, line))
+            {
+                if(line.find("NameTag:")!= string::npos)
+                {
+                    name_tag = line.substr((line.find(":"))+1);
+                }
+                else if(line.find("Character:")!= string::npos)
+                {
+                    character = line.substr(line.find(":") + 1)[0];
+                }
+                else if(line.find("Score:")!=string::npos)
+                {
+                    score = stoi(line.substr(line.find(":") + 1));
+                }
+
+            }
+            inFile.close();
+
+        }
+        else
+        {
+            cout<<"\nError: Can't find saved player information.\n";
+        }
+
+
     }
 
 
@@ -108,18 +151,9 @@ class Sudoku
 {
 
     vector<vector<int>> sudokuGrid;
-    public:
     vector<vector<int>> displayGrid;
     vector<vector<BST>>possibleValues;
     Graph sudokuGraph;
-    public:
-    Sudoku()
-    {
-        sudokuGrid.assign(9, vector<int>(9, 0));//empty grid 
-        displayGrid.assign(9, vector<int>(9, 0));
-        possibleValues.assign(9, vector<BST>(9));
-
-    }
     void createDisplayGrid()
     {
         //cpoying values from the original grid to the user grid/unsolved
@@ -145,6 +179,7 @@ class Sudoku
         }
         }
     }
+
     void generateSudoku(string& difficultyLevel)
     {
         bool isFilled = fillGrid();
@@ -171,6 +206,7 @@ class Sudoku
         }
 
     }
+    
     bool isSafe(int val, int row, int col)
     {
         for(int i=0; i<9; i++)
@@ -190,7 +226,32 @@ class Sudoku
         }
         return true;
     }
+        void initializeSudokuGrid()
+    {
+        int toFill = 20;
+        int retries = 100;
+        while(toFill>0 && retries>0)
+        {
+            int row = rand() % 9;
+            int col = rand() % 9;
+            int randomNumber =(rand() % 9)+1;//generate random number to add to grid
+            if(sudokuGrid[row][col]==0 && isSafe(randomNumber, row, col))
+            {
+                sudokuGrid[row][col]=randomNumber;
+                toFill--;
+            }
+            else
+            {
+                retries--;
+            }
 
+        }
+        if(!fillGrid())
+        {
+            sudokuGrid.assign(9, vector<int>(9, 0));
+            initializeSudokuGrid();
+        }
+    }
     
     bool fillGrid()
     {
@@ -226,76 +287,29 @@ class Sudoku
         return true;
     }
     
-
-    void printGrid()
-    {
-        for (int i = 0; i < 9; i++)
-        {
-            for (int j = 0; j < 9; j++)
-            {
-                cout << sudokuGrid[i][j] << " ";
-            }
-            cout << endl;
-        }
-    }
-
     void printGridDisplay()
     {
-        for (int i = 0; i < 9; i++)
+    cout << "Sudoku Grid:" << endl;
+    for (int i = 0; i < 9; i++) 
+    {
+        if (i % 3 == 0 && i != 0) 
         {
-            for (int j = 0; j < 9; j++)
+            cout << "------+-------+------" << endl;
+        }
+        for (int j = 0; j < 9; j++) 
+        {
+            if (j % 3 == 0 && j != 0) 
             {
-                cout << displayGrid[i][j] << " ";
+                cout << "| ";
             }
-            cout << endl;
+            cout << (displayGrid[i][j] == 0 ? "." : to_string(displayGrid[i][j])) <<" ";
         }
+        cout<<endl;
     }
-
-    void displayMenu(Player &player)
-    {
-        while(true)
-        {
-        system("cls");
-        cout<<"======== Sudoku Game Menu ========"<<endl;
-        cout<<"1. Start a new game"<<endl;
-        cout<<"2. View leaderboard"<<endl;
-        cout<<"3. Exit" <<endl;
-        cout<<"=================================="<<endl;
-        cout<<"Enter your choice: ";
-        char choice = _getch();  
-        if(choice == '1')
-        {
-            cout<<"\nStarting a new game...\n";
-            playSudoku(player);
-            break;
-
-        }
-        else if(choice == '2')
-        {
-            cout <<"\nDisplaying the leaderboard...\n";
-            //displayLeaderboard();
-            break;
-
-        }
-        else if(choice == '3')
-        {
-            cout <<"\nExiting the game. Goodbye!\n";
-            //savePlayerInfo();
-            break;
-        }
-        else
-        {
-            cout<<"\nInvalid input. Please press a key between 1 and 3.\n";
-            system("pause");
-        }
-        }
-
-
     }
-    void inputValue(int row, int col, int value)
+        void inputValue(int row, int col, int value, Player &player)
     {
-         cout << "Trying to input value " << value << " at (" << row << ", " << col << ")\n";
-        if(isSafe(row, col, value))
+        if(checkUserInput(row, col, value))
         {
             displayGrid[row][col] = value;
             updatePossibleValues(row, col, value, sudokuGraph);
@@ -304,13 +318,15 @@ class Sudoku
         }
         else
         {
-            //player.tries--
-            cout<<"Attempts Left: "<<"tries"<<endl;
+            player.tries--;
+            cout<<"Attempts Left: "<<player.tries<<endl;
         }
     }
+
+    
     bool checkUserInput(int row, int col, int value)
     {
-        if((displayGrid[row][col]!=0) || (value>9 || value<=0) || (row < 0 || row >= 9 || col < 0 || col >= 9))
+        if((!possibleValues[row][col].search(value))|| (value>9 || value<=0) || (row < 0 || row >= 9 || col < 0 || col >= 9))
         {
             return false;
         }
@@ -334,7 +350,26 @@ class Sudoku
         }
         return true;
     }
+    
+    bool isGridSolved()
+    {
+        for(int row=0; row<9; row++)
+        {
+            for(int col= 0; col<9; col++)
+            {
+                if(displayGrid[row][col]==0)
+                {
+                    return false;
+                }
+                if(!isSafe(displayGrid[row][col], row, col))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
 
+    }
     void playSudoku(Player &player)
     {
         string difficulty;
@@ -345,12 +380,11 @@ class Sudoku
         auto startTime = time(0);
         while (true) 
         {
-        //system("cls");
+        system("cls");
         printGridDisplay();
-        cout << "\nPlayer: " << player.getName() << "\nScore: " << player.getScore() << "\nTries left: " << player.getTries() << endl;
+        cout<<"\nPlayer: " <<player.name_tag<<"\nScore: "<<player.score<<"\nTries left: "<<player.tries<<endl;
 
         int row, col, value;
-        printCellOptions();
         cout << "\nEnter Row (0-8): ";
         cin >> row;
         cout << "Enter Column (0-8): ";
@@ -364,30 +398,44 @@ class Sudoku
             break;
         }
 
-        inputValue(row, col, value);
+        inputValue(row, col, value, player);
+        if(isGridSolved())
+        {
+            cout<<"Congratulations! You solved the grid, your score has been updated!\n";
+            if(difficulty == "easy"||difficulty=="Easy")
+            {
+                player.score = player.score + 100;
+            }
+            if(difficulty == "medium"||difficulty=="Medium")
+            {
+                player.score = player.score + 150;
+            }
+            if(difficulty == "hard"||difficulty=="Hard")
+            {
+                player.score = player.score + 250;
+            }
+            break;
+            
+        }
 
-        if (player.getTries() <= 0) 
+        if (player.tries <= 0) 
         {
             cout << "\nGame Over! You've exhausted all attempts.\n";
+            player.score-=50;
             break;
         }
         }
-
-        
-        //function validates user input
-        //time functionality --- attribute of player class
-        //each time a value is added -- check if grid solved else prompt for 
-        //next input
-        //if solved --- check against solved grid
-        //if incorrect --- subtract score 
-        //give the option to show leaderboard
-        //save the player info if they choose to exit
-        //rematch is possible
-
-
-
+        auto endTime = time(0);
+        int duration = difftime(endTime, startTime);//seconds
+        int minutes = duration/60;
+        int seconds = duration%60;
+        cout<<"\nTime taken to solve the Sudoku grid: "<<minutes<<"minutes "<<seconds<<" seconds.\n";
+        this_thread::sleep_for(chrono::milliseconds(10000));
+        displayMenu(player);
 
     }
+
+
     bool isPossible(int val, int row, int col)
     {
         for(int i=0; i<9; i++)
@@ -455,25 +503,66 @@ class Sudoku
         //if the value is present in the bst, it returns true;
 
     }
-    void printCellOptions() 
-    {
-    for (int row = 0; row < 9; row++) 
-    {
-        for (int col = 0; col < 9; col++) 
-        {
-            cout << "Cell (" << row << ", " << col << "): ";
-            for (int val = 1; val <= 9; val++) 
-            {
-                if (possibleValues[row][col].search(val)) 
-                {
-                    cout << val << " ";
-                }
 
-            }
-            cout<<endl;
+    public:
+    Sudoku()
+    {
+        sudokuGrid.assign(9, vector<int>(9, 0));//empty grid 
+        initializeSudokuGrid();
+        displayGrid.assign(9, vector<int>(9, 0));
+        possibleValues.assign(9, vector<BST>(9));
+
+    }
+
+    void displayMenu(Player &player)
+    {
+        while(true)
+        {
+        system("cls");
+        cout<<"======== Sudoku Game Menu ========"<<endl;
+        cout<<"1. Start a new game"<<endl;
+        cout<<"2. View Player Stats"<<endl;
+        cout<<"3. Exit" <<endl;
+        cout<<"=================================="<<endl;
+        cout<<"Enter your choice: ";
+        char choice = _getch();  
+        if(choice == '1')
+        {
+            player.loadPlayerInfo();
+            cout<<"\nStarting a new game...\n";
+            playSudoku(player);
+            break;
+
+
+        }
+        else if(choice == '2')
+        {
+            cout <<"\nDisplaying the Player Stats...\n";
+            cout<<"Player Name_Tag: "<<player.name_tag<<endl;
+            cout<<"Player Character: "<<((player.character == 'X') ? "The Cipher" : "The Riddler")<<endl;
+            cout<<"Player Score: "<<player.score<<endl;
+            cout<<"Press any key to return to menu..."<<endl;
+            _getch();
+            continue;
+
+
+        }
+        else if(choice == '3')
+        {
+            cout <<"\nExiting the game. Goodbye "<<player.name_tag<<"!\n";
+            player.savePlayerInfo();
+            break;
+
+        }
+        else
+        {
+            cout<<"\nInvalid input. Please press a key between 1 and 3.\n";
+            system("pause");
+        }
         }
     }
-    }
+
+
 
 
 };
@@ -484,8 +573,44 @@ int main()
 {
     srand(time(0));
     Sudoku sudoku;
-    Player player("PlayerName", 'A');
-    sudoku.displayMenu(player);
+    string n;
+    char c;
+    cout<<"===================================================="<<endl;
+    cout<<"Welcome to the Sudoku Puzzle Interactive Game\n";
+    cout<<"===================================================="<<endl;
+    cout<<"Enter your unique nametag: ";
+    getline(cin, n);
+    cout<<"Choose a wild character to play as: \n 'X'--- The Cipher or 'K' --- The Riddler\n";
+    while(true)
+    {
+        c = _getch();
+        if(c == 'X' || c == 'K')
+        {
+            break;
+        }
+        else
+        {
+            cout<<"Choose a wild character to play as: \n 'X'--- The Cipher or 'K' --- The Riddler\n";
+
+        }
+
+    }
+    char st;
+    cout<<"Character chosen successfully..."<<endl;
+    cout<<"Press '0' to start playing"<<endl;
+    st = _getch();
+    if(st == '0')
+    {
+        Player player(n, c);
+        sudoku.displayMenu(player);
+
+    }
+    else
+    {
+        cout<<"Bye Bye "<<n<<"..."<<endl;
+    }
+
+    
 
     
 }
