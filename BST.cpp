@@ -95,7 +95,7 @@ class BST
         }
         return node;
     }
-\
+
     Node* findMin(Node* node) 
     {
         while (node->left != nullptr) 
@@ -105,3 +105,4 @@ class BST
         return node;
     }
 };
+
